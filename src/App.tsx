@@ -5,8 +5,52 @@
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Thumbs } from "./components/thumbs";
+
+import { pipeline, env } from "@xenova/transformers";
+import { Sentiment } from "./types";
+
+// Skip local model check
+env.allowLocalModels = false;
+
+const TASK = "text-classification";
+const MODEL = "Xenova/distilbert-base-uncased-finetuned-sst-2-english";
+
+type TextClassificationPipeline = (query: string) => Promise<Result[]>;
+
+type Result = {
+  label: Sentiment;
+  score: string;
+};
 
 export default function App() {
+  const [statement, setStatement] = useState("I love this app!");
+  const classifier = useRef<TextClassificationPipeline | null>(null);
+  const [result, setResult] = useState<Result | null>(null);
+  console.log("result :", result);
+  const [loading, setLoading] = useState(true);
+
+  const queryModel = useCallback((query: string) => {
+    if (!classifier.current) return;
+    classifier.current(query).then((res) => {
+      setLoading(false);
+      setResult(res[0]);
+    });
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      classifier.current = await pipeline(TASK, MODEL);
+      queryModel(statement);
+    })();
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    queryModel(statement);
+  }, [statement]);
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 p-4">
       <h1 className="text-3xl font-bold mb-4 dark:text-gray-200">
@@ -20,63 +64,56 @@ export default function App() {
         <div className="grid gap-6">
           <div className="grid w-full gap-1.5">
             <Label htmlFor="message">Your Message</Label>
-            <Textarea id="message" placeholder="Type your message here." />
+            <Textarea
+              id="message"
+              placeholder="Type your message here..."
+              value={statement}
+              onChange={(e) => setStatement(e.target.value)}
+              disabled={loading}
+            />
           </div>
-          <Button className="w-full">Analyze</Button>
+          <Button className="w-full" disabled={loading}>
+            Analyze
+          </Button>
         </div>
-        <div className="mt-8 bg-white shadow-md rounded-md dark:bg-gray-800">
-          <div className="p-6">
-            <h2 className="text-lg font-bold mb-2 dark:text-gray-200">
-              Analysis Result
-            </h2>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <ThumbsUpIcon className="w-6 h-6 fill-green-500" />
-                <span className="text-green-500">Positive</span>
-              </div>
-              <div className="ml-auto text-gray-600 dark:text-gray-400">
-                Confidence: 85%
+
+        {!loading && result && statement.length > 0 && (
+          <div className="mt-8 bg-white shadow-md rounded-md dark:bg-gray-800">
+            <div className="p-6">
+              <h2 className="text-lg font-bold mb-2 dark:text-gray-200">
+                Analysis Result
+              </h2>
+              <div className="flex items-center gap-4">
+                <Thumbs sentiment={result.label} />
+                <div className="ml-auto text-gray-600 dark:text-gray-400">
+                  {`Confidence: ${(Number(result.score) * 100).toFixed(2)}%`}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-        <div className="mt-8 bg-white shadow-md rounded-md dark:bg-gray-800">
-          <div className="p-6 flex items-center justify-center">
-            <div className="loader" />
-            <span className="ml-4 text-gray-600 dark:text-gray-400">
-              Analyzing...
-            </span>
-          </div>
-        </div>
+        )}
       </div>
       <footer className="mt-auto p-4 text-center text-gray-600 dark:text-gray-400">
         <p>
-          Created by{" "}
-          <a className="text-blue-500 hover:underline" href="#">
+          Built by{" "}
+          <a
+            className="text-blue-500 hover:underline"
+            href="https://www.github.com/Luke-Rogerson"
+            target="_blank"
+          >
             Luke Rogerson
           </a>
+          . Check out{" "}
+          <a
+            className="text-blue-500 hover:underline"
+            href="https://www.github.com/Luke-Rogerson"
+            target="_blank"
+          >
+            the source code
+          </a>
+          .
         </p>
       </footer>
     </div>
-  );
-}
-
-function ThumbsUpIcon(props) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M7 10v12" />
-      <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z" />
-    </svg>
   );
 }
