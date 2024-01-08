@@ -85,7 +85,7 @@ export default function App() {
               {modelStatus !== "ready" && (
                 <div className="absolute inset-0 flex items-center justify-center bg-yellow-500 text-white px-4 py-2 rounded-md -rotate-12">
                   <LoaderIcon className="h-4 w-4 animate-spin" />
-                  <span>Model (~1GB) loading...</span>
+                  <span>Model (~70MB) loading...</span>
                 </div>
               )}
             </div>
